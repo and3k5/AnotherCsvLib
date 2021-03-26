@@ -12,6 +12,7 @@
     <RepositoryUrl>https://github.com/and3k5/AnotherCsvLib</RepositoryUrl>
     <PackageTags>csv</PackageTags>
     <NeutralLanguage></NeutralLanguage>
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
