@@ -35,12 +35,7 @@ namespace AnotherCsvLib.Parsing
 
         private void SkipChar() => _reader.Read();
 
-        internal string ReadOneValueString()
-        {
-            return new string(ReadOneValueChars());
-        }
-
-        internal char[] ReadOneValueChars()
+        internal object ReadOneValueObject()
         {
             var firstRead = true;
             var insideQuotedValue = false;
@@ -54,13 +49,13 @@ namespace AnotherCsvLib.Parsing
                     var ch = ReadChar();
 
                     if (ch == null)
-                        return chars.ToArray();
+                        break;
 
                     var nextCh = PeekChar();
 
                     if (ch == _options.QuoteChar)
                     {
-                        if (nextCh == _options.QuoteChar)
+                        if (!firstRead && nextCh == _options.QuoteChar)
                         {
                             chars.Add(_options.QuoteChar);
                             SkipChar();
@@ -73,7 +68,7 @@ namespace AnotherCsvLib.Parsing
                                 throw new InvalidOperationException("Invalid CSV content");
 
                             SkipChar();
-                            return chars.ToArray();
+                            break;
                         }
                         else
                         {
@@ -85,10 +80,10 @@ namespace AnotherCsvLib.Parsing
                     if (!insideQuotedValue)
                     {
                         if (ch == _options.ColumnSeparator)
-                            return chars.ToArray();
+                            break;
 
                         if (ch == '\r' && nextCh == '\n' || ch == '\n')
-                            return chars.ToArray();
+                            break;
                     }
 
                     chars.Add(ch.Value);
@@ -98,9 +93,14 @@ namespace AnotherCsvLib.Parsing
                     firstRead = false;
                 }
             } while (true);
+
+            if (!insideQuotedValue && chars.Count == 0)
+                return null;
+
+            return new string(chars.ToArray());
         }
 
-        internal IEnumerable<string> ReadOneRowEnumerable()
+        internal IEnumerable<object> ReadOneRowEnumerable()
         {
             while (true)
             {
@@ -114,11 +114,11 @@ namespace AnotherCsvLib.Parsing
                     break;
                 }
 
-                yield return ReadOneValueString();
+                yield return ReadOneValueObject();
             }
         }
 
-        private IEnumerable<IEnumerable<string>> ReadAllRows()
+        private IEnumerable<IEnumerable<object>> ReadAllRows()
         {
             while (PeekChar() != null)
             {
@@ -128,7 +128,14 @@ namespace AnotherCsvLib.Parsing
 
         internal string[][] ReadAsArrays()
         {
-            return ReadAllRows().Select(x => x.ToArray()).ToArray();
+            return ReadAllRows().Select(x => x.Select(MakeString).ToArray()).ToArray();
+        }
+
+        private static string MakeString(object o)
+        {
+            if (o is string str)
+                return str;
+            return o?.ToString();
         }
 
         internal DataTable ReadAsDataTable()
@@ -140,9 +147,21 @@ namespace AnotherCsvLib.Parsing
                 if (!rowEnumerator.MoveNext() || rowEnumerator.Current == null)
                     throw new InvalidOperationException("There are no rows to read data from");
 
-                foreach (var columnName in rowEnumerator.Current)
+                var skippedColumns = new List<int>();
+
+                var colIndex = 0;
+                foreach (var col in rowEnumerator.Current)
                 {
-                    dt.Columns.Add(columnName);
+                    if (col is string columnName && !string.IsNullOrEmpty(columnName))
+                    {
+                        dt.Columns.Add(columnName);
+                    }
+                    else
+                    {
+                        skippedColumns.Add(colIndex);
+                    }
+
+                    colIndex++;
                 }
 
                 while (rowEnumerator.MoveNext())
@@ -150,10 +169,17 @@ namespace AnotherCsvLib.Parsing
                     if (rowEnumerator.Current == null)
                         throw new InvalidOperationException("Row is null");
                     var dtRow = dt.NewRow();
-                    var colIndex = 0;
+                    colIndex = 0;
+                    var actualColIndex = 0;
                     foreach (var columnValue in rowEnumerator.Current)
                     {
-                        dtRow[colIndex++] = columnValue;
+                        if (!skippedColumns.Contains(actualColIndex) && dt.Columns.Count > colIndex)
+                        {
+                            dtRow[colIndex] = columnValue;
+                            colIndex++;
+                        }
+
+                        actualColIndex++;
                     }
 
                     dt.Rows.Add(dtRow);

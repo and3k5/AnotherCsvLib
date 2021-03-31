@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using System;
+using NUnit.Framework;
 using System.Data;
 using System.IO;
 
@@ -8,60 +9,15 @@ namespace AnotherCsvLib.Tests
     [TestFixture]
     public class ReadTests
     {
-        public Stream SimpleCsvFile()
+        private static Stream CreateStream(params string[] lines)
         {
             var stream = new MemoryStream();
             using (var writer = new StreamWriter(stream, leaveOpen: true))
             {
-                writer.WriteLine("FieldA;FieldB;FieldC;FieldD");
-                writer.WriteLine("Foo;Bar;Baz;Yahoo");
-                writer.WriteLine("One;Two;Three;Four");
-                writer.WriteLine("Five;Six;Seven;Eight");
-            }
-
-            stream.Position = 0;
-            return stream;
-        }
-
-        public Stream LineBreakInLastValueFile(string lineSeparator)
-        {
-            var stream = new MemoryStream();
-            using (var writer = new StreamWriter(stream, leaveOpen: true))
-            {
-                writer.WriteLine("FieldA;FieldB;FieldC;FieldD");
-                writer.WriteLine($"Foo;Bar;Baz;\"Yahoo{lineSeparator}Food\"");
-                writer.WriteLine("One;Two;Three;Four");
-                writer.WriteLine("Five;Six;Seven;Eight");
-            }
-
-            stream.Position = 0;
-            return stream;
-        }
-
-        public Stream LineBreakInSecondValueFile(string lineSeparator)
-        {
-            var stream = new MemoryStream();
-            using (var writer = new StreamWriter(stream, leaveOpen: true))
-            {
-                writer.WriteLine("FieldA;FieldB;FieldC;FieldD");
-                writer.WriteLine($"Foo;\"Bar{lineSeparator}Food\";Baz;Yahoo");
-                writer.WriteLine("One;Two;Three;Four");
-                writer.WriteLine("Five;Six;Seven;Eight");
-            }
-
-            stream.Position = 0;
-            return stream;
-        }
-
-        public Stream LineBreakInFirstValueFile(string lineSeparator)
-        {
-            var stream = new MemoryStream();
-            using (var writer = new StreamWriter(stream, leaveOpen: true))
-            {
-                writer.WriteLine("FieldA;FieldB;FieldC;FieldD");
-                writer.WriteLine($"\"Foo{lineSeparator}Food\";Bar;Baz;Yahoo");
-                writer.WriteLine("One;Two;Three;Four");
-                writer.WriteLine("Five;Six;Seven;Eight");
+                foreach (var line in lines)
+                {
+                    writer.WriteLine(line);
+                }
             }
 
             stream.Position = 0;
@@ -72,9 +28,10 @@ namespace AnotherCsvLib.Tests
         public void CanReadSimpleCsvFile()
         {
             DataTable dt;
-            using (var reader = new StreamReader(SimpleCsvFile()))
+            using (var stream = CreateStream("FieldA;FieldB;FieldC;FieldD", "Foo;Bar;Baz;Yahoo", "One;Two;Three;Four",
+                "Five;Six;Seven;Eight"))
             {
-                dt = Parse.ReadToDataTable(reader, new ParseOptions());
+                dt = Parse.ReadToDataTable(stream);
             }
 
             Assert.That(dt, Is.Not.Null);
@@ -94,15 +51,200 @@ namespace AnotherCsvLib.Tests
             Assert.That(dt.Rows[2][3], Is.EqualTo("Eight"));
         }
 
+        [Test]
+        public void CanReadCsvFileWithEscapedQuote()
+        {
+            DataTable dt;
+            using (var stream = CreateStream("Id;Name;Price", "100;Bike;10,000", "101;\"90\"\" flatscreen\";20,000",
+                "102;Shoe;30,000"))
+            {
+                dt = Parse.ReadToDataTable(stream);
+            }
+
+            Assert.That(dt, Is.Not.Null);
+            Assert.That(dt.Columns.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows[0][0], Is.EqualTo("100"));
+            Assert.That(dt.Rows[0][1], Is.EqualTo("Bike"));
+            Assert.That(dt.Rows[0][2], Is.EqualTo("10,000"));
+            Assert.That(dt.Rows[1][0], Is.EqualTo("101"));
+            Assert.That(dt.Rows[1][1], Is.EqualTo("90\" flatscreen"));
+            Assert.That(dt.Rows[1][2], Is.EqualTo("20,000"));
+            Assert.That(dt.Rows[2][0], Is.EqualTo("102"));
+            Assert.That(dt.Rows[2][1], Is.EqualTo("Shoe"));
+            Assert.That(dt.Rows[2][2], Is.EqualTo("30,000"));
+        }
+
+        [Test]
+        public void CanReadCsvFileWithEscapedQuoteAsFirstChar()
+        {
+            DataTable dt;
+            using (var stream = CreateStream("Id;Name;Price", "100;Bike;10,000",
+                "101;\"\"\"Really awesome\"\" 90 inch flatscreen\";20,000", "102;Shoe;30,000"))
+            {
+                dt = Parse.ReadToDataTable(stream);
+            }
+
+            Assert.That(dt, Is.Not.Null);
+            Assert.That(dt.Columns.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows[0][0], Is.EqualTo("100"));
+            Assert.That(dt.Rows[0][1], Is.EqualTo("Bike"));
+            Assert.That(dt.Rows[0][2], Is.EqualTo("10,000"));
+            Assert.That(dt.Rows[1][0], Is.EqualTo("101"));
+            Assert.That(dt.Rows[1][1], Is.EqualTo("\"Really awesome\" 90 inch flatscreen"));
+            Assert.That(dt.Rows[1][2], Is.EqualTo("20,000"));
+            Assert.That(dt.Rows[2][0], Is.EqualTo("102"));
+            Assert.That(dt.Rows[2][1], Is.EqualTo("Shoe"));
+            Assert.That(dt.Rows[2][2], Is.EqualTo("30,000"));
+        }
+
+        [Test]
+        public void CanReadCsvFileWithEmptyValueAsFirstColumn()
+        {
+            DataTable dt;
+            using (var stream = CreateStream("Id;Name;Price", "100;Bike;10,000", ";90 inch flatscreen;20,000",
+                "102;Shoe;30,000"))
+            {
+                dt = Parse.ReadToDataTable(stream);
+            }
+
+            Assert.That(dt, Is.Not.Null);
+            Assert.That(dt.Columns.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows[0][0], Is.EqualTo("100"));
+            Assert.That(dt.Rows[0][1], Is.EqualTo("Bike"));
+            Assert.That(dt.Rows[0][2], Is.EqualTo("10,000"));
+            Assert.That(dt.Rows[1][0], Is.EqualTo(DBNull.Value));
+            Assert.That(dt.Rows[1][1], Is.EqualTo("90 inch flatscreen"));
+            Assert.That(dt.Rows[1][2], Is.EqualTo("20,000"));
+            Assert.That(dt.Rows[2][0], Is.EqualTo("102"));
+            Assert.That(dt.Rows[2][1], Is.EqualTo("Shoe"));
+            Assert.That(dt.Rows[2][2], Is.EqualTo("30,000"));
+        }
+
+        [Test]
+        public void CanReadCsvFileWithEmptyValueAsMidColumn()
+        {
+            DataTable dt;
+            using (var stream = CreateStream("Id;Name;Price", "100;Bike;10,000", "101;;20,000", "102;Shoe;30,000"))
+            {
+                dt = Parse.ReadToDataTable(stream);
+            }
+
+            Assert.That(dt, Is.Not.Null);
+            Assert.That(dt.Columns.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows[0][0], Is.EqualTo("100"));
+            Assert.That(dt.Rows[0][1], Is.EqualTo("Bike"));
+            Assert.That(dt.Rows[0][2], Is.EqualTo("10,000"));
+            Assert.That(dt.Rows[1][0], Is.EqualTo("101"));
+            Assert.That(dt.Rows[1][1], Is.EqualTo(DBNull.Value));
+            Assert.That(dt.Rows[1][2], Is.EqualTo("20,000"));
+            Assert.That(dt.Rows[2][0], Is.EqualTo("102"));
+            Assert.That(dt.Rows[2][1], Is.EqualTo("Shoe"));
+            Assert.That(dt.Rows[2][2], Is.EqualTo("30,000"));
+        }
+
+        [Test]
+        public void CanReadCsvFileWithEmptyValueAsLastColumn()
+        {
+            DataTable dt;
+            using (var stream = CreateStream("Id;Name;Price", "100;Bike;10,000", "101;90 inch flatscreen;",
+                "102;Shoe;30,000"))
+            {
+                dt = Parse.ReadToDataTable(stream);
+            }
+
+            Assert.That(dt, Is.Not.Null);
+            Assert.That(dt.Columns.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows[0][0], Is.EqualTo("100"));
+            Assert.That(dt.Rows[0][1], Is.EqualTo("Bike"));
+            Assert.That(dt.Rows[0][2], Is.EqualTo("10,000"));
+            Assert.That(dt.Rows[1][0], Is.EqualTo("101"));
+            Assert.That(dt.Rows[1][1], Is.EqualTo("90 inch flatscreen"));
+            Assert.That(dt.Rows[1][2], Is.EqualTo(DBNull.Value));
+            Assert.That(dt.Rows[2][0], Is.EqualTo("102"));
+            Assert.That(dt.Rows[2][1], Is.EqualTo("Shoe"));
+            Assert.That(dt.Rows[2][2], Is.EqualTo("30,000"));
+        }
+
+        [Test]
+        public void CanReadCsvFileWithEmptyNamedColumnAsFirstColumn()
+        {
+            DataTable dt;
+            using (var stream = CreateStream(";Name;Price", "100;Bike;10,000", "101;90 inch flatscreen;20,000",
+                "102;Shoe;30,000"))
+            {
+                dt = Parse.ReadToDataTable(stream);
+            }
+
+            Assert.That(dt, Is.Not.Null);
+            Assert.That(dt.Columns.Count, Is.EqualTo(2));
+            Assert.That(dt.Rows.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows[0][0], Is.EqualTo("Bike"));
+            Assert.That(dt.Rows[0][1], Is.EqualTo("10,000"));
+            Assert.That(dt.Rows[1][0], Is.EqualTo("90 inch flatscreen"));
+            Assert.That(dt.Rows[1][1], Is.EqualTo("20,000"));
+            Assert.That(dt.Rows[2][0], Is.EqualTo("Shoe"));
+            Assert.That(dt.Rows[2][1], Is.EqualTo("30,000"));
+        }
+
+        [Test]
+        public void CanReadCsvFileWithEmptyNamedColumnAsMidColumn()
+        {
+            DataTable dt;
+            using (var stream = CreateStream("Id;;Price", "100;Bike;10,000", "101;90 inch flatscreen;20,000",
+                "102;Shoe;30,000"))
+            {
+                dt = Parse.ReadToDataTable(stream);
+            }
+
+            Assert.That(dt, Is.Not.Null);
+            Assert.That(dt.Columns.Count, Is.EqualTo(2));
+            Assert.That(dt.Rows.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows[0][0], Is.EqualTo("100"));
+            Assert.That(dt.Rows[0][1], Is.EqualTo("10,000"));
+            Assert.That(dt.Rows[1][0], Is.EqualTo("101"));
+            Assert.That(dt.Rows[1][1], Is.EqualTo("20,000"));
+            Assert.That(dt.Rows[2][0], Is.EqualTo("102"));
+            Assert.That(dt.Rows[2][1], Is.EqualTo("30,000"));
+        }
+
+        [Test]
+        public void CanReadCsvFileWithEmptyNamedColumnAsLastColumn()
+        {
+            DataTable dt;
+            using (var stream = CreateStream("Id;Name;", "100;Bike;10,000", "101;90 inch flatscreen;20,000",
+                "102;Shoe;30,000"))
+            {
+                dt = Parse.ReadToDataTable(stream);
+            }
+
+            Assert.That(dt, Is.Not.Null);
+            Assert.That(dt.Columns.Count, Is.EqualTo(2));
+            Assert.That(dt.Rows.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows[0][0], Is.EqualTo("100"));
+            Assert.That(dt.Rows[0][1], Is.EqualTo("Bike"));
+            Assert.That(dt.Rows[1][0], Is.EqualTo("101"));
+            Assert.That(dt.Rows[1][1], Is.EqualTo("90 inch flatscreen"));
+            Assert.That(dt.Rows[2][0], Is.EqualTo("102"));
+            Assert.That(dt.Rows[2][1], Is.EqualTo("Shoe"));
+        }
+
         [TestCase("\r\n")]
         [TestCase("\n")]
         [TestCase("\r")]
         public void CanReadFileWithAMultiLineFieldInLastValue(string sep)
         {
             DataTable dt;
-            using (var reader = new StreamReader(LineBreakInLastValueFile(sep)))
+            using (var stream = CreateStream("FieldA;FieldB;FieldC;FieldD",
+                $"Foo;Bar;Baz;\"Yahoo{sep}Food\"",
+                "One;Two;Three;Four",
+                "Five;Six;Seven;Eight"))
             {
-                dt = Parse.ReadToDataTable(reader, new ParseOptions());
+                dt = Parse.ReadToDataTable(stream);
             }
 
             Assert.That(dt, Is.Not.Null);
@@ -128,9 +270,12 @@ namespace AnotherCsvLib.Tests
         public void CanReadFileWithAMultiLineFieldInSecondValue(string sep)
         {
             DataTable dt;
-            using (var reader = new StreamReader(LineBreakInSecondValueFile(sep)))
+            using (var stream = CreateStream("FieldA;FieldB;FieldC;FieldD",
+                $"Foo;\"Bar{sep}Food\";Baz;Yahoo",
+                "One;Two;Three;Four",
+                "Five;Six;Seven;Eight"))
             {
-                dt = Parse.ReadToDataTable(reader, new ParseOptions());
+                dt = Parse.ReadToDataTable(stream);
             }
 
             Assert.That(dt, Is.Not.Null);
@@ -156,9 +301,12 @@ namespace AnotherCsvLib.Tests
         public void CanReadFileWithAMultiLineFieldInFirstValue(string sep)
         {
             DataTable dt;
-            using (var reader = new StreamReader(LineBreakInFirstValueFile(sep)))
+            using (var stream = CreateStream("FieldA;FieldB;FieldC;FieldD",
+                $"\"Foo{sep}Food\";Bar;Baz;Yahoo",
+                "One;Two;Three;Four",
+                "Five;Six;Seven;Eight"))
             {
-                dt = Parse.ReadToDataTable(reader, new ParseOptions());
+                dt = Parse.ReadToDataTable(stream);
             }
 
             Assert.That(dt, Is.Not.Null);
