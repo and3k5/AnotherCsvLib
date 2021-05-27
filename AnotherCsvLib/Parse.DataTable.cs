@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.IO;
 using AnotherCsvLib.Parsing;
+using AnotherCsvLib.Parsing.Reader;
 
 namespace AnotherCsvLib
 {
@@ -31,7 +32,13 @@ namespace AnotherCsvLib
 
         public static DataTable ReadToDataTable(TextReader textReader, ParseOptions options = null)
         {
-            using (var reader = new Parser(textReader, options ?? new ParseOptions()))
+            using (var charReader = new CharReader(textReader))
+                return ReadToDataTable(charReader, options);
+        }
+
+        internal static DataTable ReadToDataTable(CharReader charReader, ParseOptions options = null)
+        {
+            using (var reader = new Parser(charReader, options ?? new ParseOptions()))
                 return reader.ReadAsDataTable();
         }
     }

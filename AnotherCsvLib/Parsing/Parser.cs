@@ -1,20 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.IO;
 using System.Linq;
+using AnotherCsvLib.Parsing.Reader;
 
 namespace AnotherCsvLib.Parsing
 {
     internal class Parser : IDisposable
     {
-        private readonly TextReader _reader;
-        private readonly ParseOptions _options;
+        private readonly CharReader _reader;
+        private readonly RowReader _rowReader;
 
-        public Parser(TextReader reader, ParseOptions options)
+        public Parser(CharReader reader, ParseOptions options)
         {
+            if (options == null) throw new ArgumentNullException(nameof(options));
             _reader = reader ?? throw new ArgumentNullException(nameof(reader));
-            _options = options ?? throw new ArgumentNullException(nameof(options));
+
+            _rowReader = new RowReader(new ValueReader(_reader, options));
         }
 
         public void Dispose()
@@ -22,108 +24,15 @@ namespace AnotherCsvLib.Parsing
             _reader?.Dispose();
         }
 
-        private static char? ToChar(int v)
+        private IEnumerable<object[]> ReadAllRows()
         {
-            if (v == -1)
-                return null;
-            return (char) v;
-        }
-
-        private char? PeekChar() => ToChar(_reader.Peek());
-
-        private char? ReadChar() => ToChar(_reader.Read());
-
-        private void SkipChar() => _reader.Read();
-
-        internal object ReadOneValueObject()
-        {
-            var firstRead = true;
-            var insideQuotedValue = false;
-
-            var chars = new List<char>();
-
-            do
+            var rows = new List<object[]>();
+            while (_reader.PeekChar() != null)
             {
-                try
-                {
-                    var ch = ReadChar();
-
-                    if (ch == null)
-                        break;
-
-                    var nextCh = PeekChar();
-
-                    if (ch == _options.QuoteChar)
-                    {
-                        if (!firstRead && nextCh == _options.QuoteChar)
-                        {
-                            chars.Add(_options.QuoteChar);
-                            SkipChar();
-                            continue;
-                        }
-
-                        if (!firstRead)
-                        {
-                            if (!insideQuotedValue)
-                                throw new InvalidOperationException("Invalid CSV content");
-
-                            SkipChar();
-                            break;
-                        }
-                        else
-                        {
-                            insideQuotedValue = true;
-                            continue;
-                        }
-                    }
-
-                    if (!insideQuotedValue)
-                    {
-                        if (ch == _options.ColumnSeparator)
-                            break;
-
-                        if (ch == '\r' && nextCh == '\n' || ch == '\n')
-                            break;
-                    }
-
-                    chars.Add(ch.Value);
-                }
-                finally
-                {
-                    firstRead = false;
-                }
-            } while (true);
-
-            if (!insideQuotedValue && chars.Count == 0)
-                return null;
-
-            return new string(chars.ToArray());
-        }
-
-        internal IEnumerable<object> ReadOneRowEnumerable()
-        {
-            while (true)
-            {
-                if (PeekChar() == '\r')
-                    SkipChar();
-                if (PeekChar() == null)
-                    break;
-                if (PeekChar() == '\n')
-                {
-                    SkipChar();
-                    break;
-                }
-
-                yield return ReadOneValueObject();
+                rows.Add(_rowReader.ReadOneRowEnumerable());
             }
-        }
 
-        private IEnumerable<IEnumerable<object>> ReadAllRows()
-        {
-            while (PeekChar() != null)
-            {
-                yield return ReadOneRowEnumerable();
-            }
+            return rows.ToArray();
         }
 
         internal string[][] ReadAsArrays()
