@@ -36,10 +36,17 @@ namespace AnotherCsvLib
                 return ReadToDataTable(charReader, options);
         }
 
+        public static event ParsedDataTableDelegate ParsedDataTable;
+
         internal static DataTable ReadToDataTable(CharReader charReader, ParseOptions options = null)
         {
             using (var reader = new Parser(charReader, options ?? new ParseOptions()))
+            {
+                reader.ParsedDataTable += ParsedDataTable;
                 return reader.ReadAsDataTable();
+            }
         }
     }
+
+    public delegate void ParsedDataTableDelegate(DataTable dataTable);
 }

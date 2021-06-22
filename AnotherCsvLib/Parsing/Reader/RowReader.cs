@@ -11,12 +11,13 @@ namespace AnotherCsvLib.Parsing.Reader
             _reader = reader;
         }
 
-        internal object[] ReadOneRowEnumerable()
+        internal object[] ReadOneRowEnumerable(int rowIndex)
         {
             var row = new List<object>();
+            var colIndex = 0;
             while (true)
             {
-                var (endRow, value) = _reader.ReadOneValueObject();
+                var (endRow, value) = _reader.ReadOneValueObject(rowIndex, colIndex++);
                 row.Add(value);
                 if (endRow)
                     break;

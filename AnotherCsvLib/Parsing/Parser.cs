@@ -19,6 +19,8 @@ namespace AnotherCsvLib.Parsing
             _rowReader = new RowReader(new ValueReader(_reader, options));
         }
 
+        public ParsedDataTableDelegate ParsedDataTable { get; set; }
+
         public void Dispose()
         {
             _reader?.Dispose();
@@ -27,9 +29,10 @@ namespace AnotherCsvLib.Parsing
         private IEnumerable<object[]> ReadAllRows()
         {
             var rows = new List<object[]>();
+            var rowNumber = 0;
             while (_reader.PeekChar() != null)
             {
-                rows.Add(_rowReader.ReadOneRowEnumerable());
+                rows.Add(_rowReader.ReadOneRowEnumerable(rowNumber++));
             }
 
             return rows.ToArray();
@@ -94,6 +97,8 @@ namespace AnotherCsvLib.Parsing
                     dt.Rows.Add(dtRow);
                 }
             }
+
+            ParsedDataTable?.Invoke(dt);
 
             return dt;
         }

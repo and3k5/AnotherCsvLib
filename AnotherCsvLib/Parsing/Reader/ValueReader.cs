@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace AnotherCsvLib.Parsing.Reader
 {
@@ -14,7 +15,7 @@ namespace AnotherCsvLib.Parsing.Reader
             _options = options;
         }
 
-        internal (bool endRow, object value) ReadOneValueObject()
+        internal (bool endRow, object value) ReadOneValueObject(int rowIndex, int colIndex)
         {
             var insideQuotedValue = false;
 
@@ -25,6 +26,13 @@ namespace AnotherCsvLib.Parsing.Reader
             do
             {
                 var i = nextI++;
+
+                if (!insideQuotedValue && PeekAndSkipNewline())
+                {
+                    endRow = true;
+                    break;
+                }
+
                 var ch = _reader.ReadChar();
 
                 if (ch == null)
@@ -45,34 +53,60 @@ namespace AnotherCsvLib.Parsing.Reader
 
                     if (nextCh == _options.QuoteChar)
                     {
+                        if (!insideQuotedValue)
+                            throw new Exception(
+                                $"Invalid CSV content at line {rowIndex + 1} and column {colIndex + 1}");
+
                         chars.Add(_options.QuoteChar);
                         _reader.SkipChar();
                         continue;
                     }
 
-                    if (!insideQuotedValue)
-                        throw new InvalidOperationException("Invalid CSV content");
-
-                    ch = _reader.ReadChar();
-
-                    if (ch == null)
+                    if (nextCh == null)
                     {
                         endRow = true;
                         break;
                     }
 
-                    nextCh = _reader.PeekChar();
+                    if (nextCh == _options.ColumnSeparator)
+                    {
+                        if (!insideQuotedValue)
+                            chars.Add(ch.Value);
 
-                    if (CheckEndingCharacters(ch, nextCh, ref endRow))
+                        _reader.SkipChar();
                         break;
+                    }
 
-                    throw new InvalidOperationException("Invalid end of column value");
+                    if (PeekAndSkipNewline())
+                    {
+                        if (!insideQuotedValue)
+                            chars.Add(ch.Value);
+                        endRow = true;
+                        break;
+                    }
                 }
 
                 if (!insideQuotedValue)
                 {
-                    if (CheckEndingCharacters(ch, nextCh, ref endRow))
+                    if (ch == _options.ColumnSeparator)
+                    {
+                        //_reader.SkipChar();
                         break;
+                    }
+
+                    if (nextCh == _options.ColumnSeparator)
+                    {
+                        chars.Add(ch.Value);
+                        _reader.SkipChar();
+                        break;
+                    }
+
+                    if (PeekAndSkipNewline())
+                    {
+                        chars.Add(ch.Value);
+                        endRow = true;
+                        break;
+                    }
                 }
 
                 chars.Add(ch.Value);
@@ -88,23 +122,27 @@ namespace AnotherCsvLib.Parsing.Reader
             return (endRow, value);
         }
 
-        private bool CheckEndingCharacters(char? ch, char? nextCh, ref bool endRow1)
+        [SuppressMessage("ReSharper", "ConvertIfStatementToReturnStatement")]
+        private bool PeekAndSkipNewline()
         {
-            if (ch == _options.ColumnSeparator)
+            bool IsMatch(string test)
+            {
+                var match = string.Equals(test, _reader.PeekString(test.Length), StringComparison.Ordinal);
+                if (match)
+                    _reader.SkipChars(test.Length);
+                return match;
+            }
+
+            if (!_reader.PeekChar().HasValue)
                 return true;
 
-            switch (ch)
-            {
-                case '\r' when nextCh == '\n':
-                    _reader.SkipChar();
-                    endRow1 = true;
-                    return true;
-                case '\n':
-                    endRow1 = true;
-                    return true;
-                default:
-                    return false;
-            }
+            if (IsMatch("\r\n"))
+                return true;
+
+            if (IsMatch("\n"))
+                return true;
+
+            return false;
         }
     }
 }

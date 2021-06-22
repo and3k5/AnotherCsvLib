@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 using System.Data;
 using System.IO;
+using System.Linq;
 
 // ReSharper disable once CheckNamespace
 namespace AnotherCsvLib.Tests
@@ -9,6 +11,37 @@ namespace AnotherCsvLib.Tests
     [TestFixture]
     public class ReadTests
     {
+        [OneTimeSetUp]
+        public void OneTimeSetup()
+        {
+            static string FixLength(string str, int l)
+            {
+                while (str.Length < l)
+                    str += " ";
+                return str;
+            }
+
+            Parse.ParsedDataTable += table =>
+            {
+                var dataColumns = table.Columns.Cast<DataColumn>().ToArray();
+                var dataRows = table.Rows.Cast<DataRow>();
+                var columnAndLength =
+                    dataColumns.Select(x => dataRows.Max(y => y[x]?.ToString()?.Length ?? 0)).ToArray();
+                var values = new List<List<string>>
+                {
+                    dataColumns.Select(x => x.ColumnName).ToList()
+                };
+                values.AddRange(dataRows.Select(x => x.ItemArray.Select(y => y?.ToString()).ToList()));
+
+                var rowContents = values.Select(x =>
+                    string.Join(" | ", x.Select((y, i) => FixLength(y, columnAndLength[i]))));
+
+                var content = string.Join("\n", rowContents);
+
+                Console.WriteLine(content);
+            };
+        }
+
         private static Stream CreateStream(string newLine, params string[] lines)
         {
             var stream = new MemoryStream();
@@ -71,6 +104,32 @@ namespace AnotherCsvLib.Tests
             Assert.That(dt.Rows.Count, Is.EqualTo(3));
             Assert.That(dt.Rows[0][0], Is.EqualTo("100"));
             Assert.That(dt.Rows[0][1], Is.EqualTo("Bike"));
+            Assert.That(dt.Rows[0][2], Is.EqualTo("10,000"));
+            Assert.That(dt.Rows[1][0], Is.EqualTo("101"));
+            Assert.That(dt.Rows[1][1], Is.EqualTo("90\" flatscreen"));
+            Assert.That(dt.Rows[1][2], Is.EqualTo("20,000"));
+            Assert.That(dt.Rows[2][0], Is.EqualTo("102"));
+            Assert.That(dt.Rows[2][1], Is.EqualTo("Shoe"));
+            Assert.That(dt.Rows[2][2], Is.EqualTo("30,000"));
+        }
+
+        [TestCase("\r\n")]
+        [TestCase("\n")]
+        public void CanReadCsvFileWithQuotes(string newLine)
+        {
+            DataTable dt;
+            using (var stream = CreateStream(newLine, "Id;Name;Price", "100;Bike brand \"Some bike\";10,000",
+                "101;90\" flatscreen;20,000",
+                "102;Shoe;30,000"))
+            {
+                dt = Parse.ReadToDataTable(stream);
+            }
+
+            Assert.That(dt, Is.Not.Null);
+            Assert.That(dt.Columns.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows[0][0], Is.EqualTo("100"));
+            Assert.That(dt.Rows[0][1], Is.EqualTo("Bike brand \"Some bike\""));
             Assert.That(dt.Rows[0][2], Is.EqualTo("10,000"));
             Assert.That(dt.Rows[1][0], Is.EqualTo("101"));
             Assert.That(dt.Rows[1][1], Is.EqualTo("90\" flatscreen"));
