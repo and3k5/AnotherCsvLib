@@ -1,9 +1,6 @@
 ﻿namespace AnotherCsvLib
 {
-    public sealed class ParseOptions
+    public sealed class ParseOptions : CsvOptionsBase
     {
-        public char QuoteChar { get; set; } = '"';
-
-        public char ColumnSeparator { get; set; } = ';';
     }
 }
