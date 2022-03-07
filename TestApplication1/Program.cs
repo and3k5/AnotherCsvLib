@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using AnotherCsvLib;
 
 namespace TestApplication1
 {
@@ -9,8 +10,23 @@ namespace TestApplication1
     {
         private static void Main()
         {
+            askForDelimiter:
+            Console.Write("Delimiter (;): ");
+            var delimiterStr = Console.ReadLine();
+            if (string.IsNullOrEmpty(delimiterStr))
+            {
+                delimiterStr = ";";
+            }
+            if (delimiterStr.Length > 1)
+            {
+                Console.WriteLine("Delimiter cannot be more than one character!");
+                goto askForDelimiter;
+            }
             Console.Write("Path for csv file: ");
-            var dataTable = AnotherCsvLib.Parse.ReadFileToDataTable(Console.ReadLine());
+            var dataTable = AnotherCsvLib.Parse.ReadFileToDataTable(Console.ReadLine(), new ParseOptions()
+            {
+                ColumnSeparator = delimiterStr[0],
+            });
             var data = new Dictionary<string, List<string>>();
 
             var maxLengths = new Dictionary<string, int>();
