@@ -53,12 +53,9 @@ namespace AnotherCsvLib.Parsing.Reader
 
                     if (nextCh == _options.QuoteChar)
                     {
-                        if (!insideQuotedValue)
-                            throw new Exception(
-                                $"Invalid CSV content at line {rowIndex + 1} and column {colIndex + 1}");
-
                         chars.Add(_options.QuoteChar);
-                        _reader.SkipChar();
+                        if (insideQuotedValue)
+                            _reader.SkipChar();
                         continue;
                     }
 

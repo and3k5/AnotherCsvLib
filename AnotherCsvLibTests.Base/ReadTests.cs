@@ -91,6 +91,65 @@ namespace AnotherCsvLibTests.Base
         
         [TestCase("\r\n")]
         [TestCase("\n")]
+        public void CanReadSimpleCsvFileWithDoubleQuoteChars(string newLine)
+        {
+            DataTable dt;
+            using (var stream = CreateStream(newLine, "FieldA;FieldB;FieldC;FieldD", "Foo;Bar;Baz;Yahoo",
+                       "One;Two;Three;Four",
+                       "Five;Six;I think this is \"\"Seven\"\";Eight"))
+            {
+                dt = Parse.ReadToDataTable(stream);
+            }
+
+            Assert.That(dt, Is.Not.Null);
+            Assert.That(dt.Columns.Count, Is.EqualTo(4));
+            Assert.That(dt.Rows.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows[0][0], Is.EqualTo("Foo"));
+            Assert.That(dt.Rows[0][1], Is.EqualTo("Bar"));
+            Assert.That(dt.Rows[0][2], Is.EqualTo("Baz"));
+            Assert.That(dt.Rows[0][3], Is.EqualTo("Yahoo"));
+            Assert.That(dt.Rows[1][0], Is.EqualTo("One"));
+            Assert.That(dt.Rows[1][1], Is.EqualTo("Two"));
+            Assert.That(dt.Rows[1][2], Is.EqualTo("Three"));
+            Assert.That(dt.Rows[1][3], Is.EqualTo("Four"));
+            Assert.That(dt.Rows[2][0], Is.EqualTo("Five"));
+            Assert.That(dt.Rows[2][1], Is.EqualTo("Six"));
+            Assert.That(dt.Rows[2][2], Is.EqualTo("I think this is \"\"Seven\"\""));
+            Assert.That(dt.Rows[2][3], Is.EqualTo("Eight"));
+        }
+        
+        
+        [TestCase("\r\n")]
+        [TestCase("\n")]
+        public void CanReadSimpleCsvFileWithSingleQuoteChars(string newLine)
+        {
+            DataTable dt;
+            using (var stream = CreateStream(newLine, "FieldA;FieldB;FieldC;FieldD", "Foo;Bar;Baz;Yahoo",
+                       "One;Two;Three;Four",
+                       "Five;Six;I think this is \"Seven\";Eight"))
+            {
+                dt = Parse.ReadToDataTable(stream);
+            }
+
+            Assert.That(dt, Is.Not.Null);
+            Assert.That(dt.Columns.Count, Is.EqualTo(4));
+            Assert.That(dt.Rows.Count, Is.EqualTo(3));
+            Assert.That(dt.Rows[0][0], Is.EqualTo("Foo"));
+            Assert.That(dt.Rows[0][1], Is.EqualTo("Bar"));
+            Assert.That(dt.Rows[0][2], Is.EqualTo("Baz"));
+            Assert.That(dt.Rows[0][3], Is.EqualTo("Yahoo"));
+            Assert.That(dt.Rows[1][0], Is.EqualTo("One"));
+            Assert.That(dt.Rows[1][1], Is.EqualTo("Two"));
+            Assert.That(dt.Rows[1][2], Is.EqualTo("Three"));
+            Assert.That(dt.Rows[1][3], Is.EqualTo("Four"));
+            Assert.That(dt.Rows[2][0], Is.EqualTo("Five"));
+            Assert.That(dt.Rows[2][1], Is.EqualTo("Six"));
+            Assert.That(dt.Rows[2][2], Is.EqualTo("I think this is \"Seven\""));
+            Assert.That(dt.Rows[2][3], Is.EqualTo("Eight"));
+        }
+
+        [TestCase("\r\n")]
+        [TestCase("\n")]
         public void CanReadCsvFileWithEscapedQuote(string newLine)
         {
             DataTable dt;
