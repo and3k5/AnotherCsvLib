@@ -1,11 +1,12 @@
-﻿using NUnit.Framework;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
+using AnotherCsvLib;
+using NUnit.Framework;
 
-namespace AnotherCsvLib.Tests
+namespace AnotherCsvLibTests.Base
 {
     [TestFixture]
     public class WriteTests

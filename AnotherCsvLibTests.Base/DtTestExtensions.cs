@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Data;
 
-namespace AnotherCsvLib.Tests
+namespace AnotherCsvLibTests.Base
 {
     public static class DtTestExtensions
     {

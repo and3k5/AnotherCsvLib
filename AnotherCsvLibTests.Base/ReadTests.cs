@@ -4,9 +4,11 @@ using NUnit.Framework;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Text;
+using AnotherCsvLib;
 
 // ReSharper disable once CheckNamespace
-namespace AnotherCsvLib.Tests
+namespace AnotherCsvLibTests.Base
 {
     [TestFixture]
     public class ReadTests
@@ -14,7 +16,7 @@ namespace AnotherCsvLib.Tests
         [OneTimeSetUp]
         public void OneTimeSetup()
         {
-            static string FixLength(string str, int l)
+            string FixLength(string str, int l)
             {
                 while (str.Length < l)
                     str += " ";
@@ -45,7 +47,7 @@ namespace AnotherCsvLib.Tests
         private static Stream CreateStream(string newLine, params string[] lines)
         {
             var stream = new MemoryStream();
-            using (var writer = new StreamWriter(stream, leaveOpen: true))
+            using (var writer = new StreamWriter(stream, Encoding.UTF8, 1024, true))
             {
                 writer.NewLine = newLine;
                 foreach (var line in lines)
@@ -64,8 +66,8 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, "FieldA;FieldB;FieldC;FieldD", "Foo;Bar;Baz;Yahoo",
-                "One;Two;Three;Four",
-                "Five;Six;Seven;Eight"))
+                       "One;Two;Three;Four",
+                       "Five;Six;Seven;Eight"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -86,15 +88,15 @@ namespace AnotherCsvLib.Tests
             Assert.That(dt.Rows[2][2], Is.EqualTo("Seven"));
             Assert.That(dt.Rows[2][3], Is.EqualTo("Eight"));
         }
-
+        
         [TestCase("\r\n")]
         [TestCase("\n")]
         public void CanReadCsvFileWithEscapedQuote(string newLine)
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, "Id;Name;Price", "100;Bike;10,000",
-                "101;\"90\"\" flatscreen\";20,000",
-                "102;Shoe;30,000"))
+                       "101;\"90\"\" flatscreen\";20,000",
+                       "102;Shoe;30,000"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -119,8 +121,8 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, "Id;Name;Price", "100;Bike brand \"Some bike\";10,000",
-                "101;90\" flatscreen;20,000",
-                "102;Shoe;30,000"))
+                       "101;90\" flatscreen;20,000",
+                       "102;Shoe;30,000"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -145,7 +147,7 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, "Id;Name;Price", "100;Bike;10,000",
-                "101;\"\"\"Really awesome\"\" 90 inch flatscreen\";20,000", "102;Shoe;30,000"))
+                       "101;\"\"\"Really awesome\"\" 90 inch flatscreen\";20,000", "102;Shoe;30,000"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -170,7 +172,7 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, "Id;Name;Price", "100;Bike;10,000", ";90 inch flatscreen;20,000",
-                "102;Shoe;30,000"))
+                       "102;Shoe;30,000"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -195,7 +197,7 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, "Id;Name;Price", "100;Bike;10,000", "101;;20,000",
-                "102;Shoe;30,000"))
+                       "102;Shoe;30,000"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -220,7 +222,7 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, "Id;Name;Price", "100;Bike;10,000", "101;90 inch flatscreen;",
-                "102;Shoe;30,000"))
+                       "102;Shoe;30,000"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -245,7 +247,7 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, ";Name;Price", "100;Bike;10,000", "101;90 inch flatscreen;20,000",
-                "102;Shoe;30,000"))
+                       "102;Shoe;30,000"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -267,8 +269,8 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, ";Name;Price", "100;Bike;10,000",
-                "101;\"90 inch flatscreen;cool\";20,000",
-                "102;Shoe;30,000"))
+                       "101;\"90 inch flatscreen;cool\";20,000",
+                       "102;Shoe;30,000"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -290,7 +292,7 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, "Id;;Price", "100;Bike;10,000", "101;90 inch flatscreen;20,000",
-                "102;Shoe;30,000"))
+                       "102;Shoe;30,000"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -312,7 +314,7 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, "Id;Name;", "100;Bike;10,000", "101;90 inch flatscreen;20,000",
-                "102;Shoe;30,000"))
+                       "102;Shoe;30,000"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -338,9 +340,9 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, "FieldA;FieldB;FieldC;FieldD",
-                $"Foo;Bar;Baz;\"Yahoo{sep}Food\"",
-                "One;Two;Three;Four",
-                "Five;Six;Seven;Eight"))
+                       $"Foo;Bar;Baz;\"Yahoo{sep}Food\"",
+                       "One;Two;Three;Four",
+                       "Five;Six;Seven;Eight"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -372,9 +374,9 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, "FieldA;FieldB;FieldC;FieldD",
-                $"Foo;\"Bar{sep}Food\";Baz;Yahoo",
-                "One;Two;Three;Four",
-                "Five;Six;Seven;Eight"))
+                       $"Foo;\"Bar{sep}Food\";Baz;Yahoo",
+                       "One;Two;Three;Four",
+                       "Five;Six;Seven;Eight"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
@@ -406,9 +408,9 @@ namespace AnotherCsvLib.Tests
         {
             DataTable dt;
             using (var stream = CreateStream(newLine, "FieldA;FieldB;FieldC;FieldD",
-                $"\"Foo{sep}Food\";Bar;Baz;Yahoo",
-                "One;Two;Three;Four",
-                "Five;Six;Seven;Eight"))
+                       $"\"Foo{sep}Food\";Bar;Baz;Yahoo",
+                       "One;Two;Three;Four",
+                       "Five;Six;Seven;Eight"))
             {
                 dt = Parse.ReadToDataTable(stream);
             }
